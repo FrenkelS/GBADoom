@@ -15,13 +15,13 @@ A pre-compiled shareware rom can be found over at the **[Releases](https://githu
  - ~~Gamma is in the options now instead of a hotkey~~
  - ~~Gamma/Autorun settings now save save slots~~  
  - ~~Gamma is now a slider, and is colour corrected for the frontlit/non-lit GBA displays.~~  
+ - ~~FPS Counter is now accessable via a cheat~~  
 *All of the above changes have been merged into doomhack's main branch*
  - Other minor bug fixes and optimisations
  - Created properly resized title screen images (TITLEPIC is rendered via CPUBlockCopy rather than drawing from the IWAD, making it more responsive)
  - Unused shareware IWAD content is removed to build a smaller rom
  - New MS GS WAVETABLE music for Doom 1, made by [Sakitoshi](https://www.romhacking.net/community/2272/)
- - FPS Counter is now accessable via a cheat
-
+ 
 **TODO:**
  - Recreate Final Doom: Evilution / TNT.WAD's music in impulsetracker
  - Get Doom II running smoothly, and re-port the music in impulsetracker as well
