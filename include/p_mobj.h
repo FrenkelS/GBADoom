@@ -204,8 +204,8 @@
 // Hmm ???.
 #define MF_TRANSSHIFT 26
 
-#define MF_UNUSED2      (unsigned int)(0x0000000010000000)
-#define MF_UNUSED3      (unsigned int)(0x0000000020000000)
+#define MF_POOLED      (unsigned int)(0x0000000010000000)
+#define MF_UNUSED       (unsigned int)(0x0000000020000000)
 
     // Translucent sprite?                                          // phares
 #define MF_TRANSLUCENT  (unsigned int)(0x0000000040000000)
@@ -254,8 +254,8 @@ typedef struct mobj_s
 
     //More drawing info: to determine current sprite.
     angle_t             angle;  // orientation
-    spritenum_t         sprite; // used to find patch_t and flip value
-    int                 frame;  // might be ORed with FF_FULLBRIGHT
+    unsigned short      sprite; // used to find patch_t and flip value
+    unsigned short      frame;  // might be ORed with FF_FULLBRIGHT
 
     // Interaction info, by BLOCKMAP.
     // Links in blocks (if needed).
@@ -280,38 +280,35 @@ typedef struct mobj_s
     fixed_t             momy;
     fixed_t             momz;
 
-    mobjtype_t          type;
-    const mobjinfo_t*   info;   // &mobjinfo[mobj->type]
+    short               health;
+
+    unsigned short      type;
 
     int                 tics;   // state tic counter
     const state_t*      state;
     unsigned int        flags;
-    int                 health;
 
     // Thing being chased/attacked (or NULL),
     // also the originator for missiles.
     struct mobj_s*      target;
 
     // Movement direction, movement generation (zig-zagging).
-    short               movedir;        // 0-7
+
+    unsigned short movedir: 4;
+
+    // If >0, the current target will be chased no
+    // matter what (even if shot by another object)
+    unsigned short               threshold:8;
+
+
+    // killough 9/9/98: How long a monster pursues a target.
+    unsigned short      pursuecount;
+
     short               movecount;      // when 0, select a new dir
-
-
 
     // Reaction time: if non 0, don't attack yet.
     // Used by player to freeze a bit after teleporting.
     short               reactiontime;
-
-    // If >0, the current target will be chased no
-    // matter what (even if shot by another object)
-    short               threshold;
-
-    // killough 9/9/98: How long a monster pursues a target.
-    short               pursuecount;
-
-    // Additional info record for player avatars only.
-    // Only valid if type == MT_PLAYER
-    struct player_s*    player;
 
     // Thing being chased/attacked for tracers.
     struct mobj_s*      tracer;
@@ -369,5 +366,8 @@ void    P_SpawnMapThing (const mapthing_t*  mthing);
 void    P_SpawnPlayer(int n, const mapthing_t *mthing);
 void    P_CheckMissileSpawn(mobj_t*);  // killough 8/2/98
 void    P_ExplodeMissile(mobj_t*);    // killough
+
+struct player_s* P_MobjIsPlayer(const mobj_t* mobj);
+
 #endif
 

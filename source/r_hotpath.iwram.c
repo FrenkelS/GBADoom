@@ -42,7 +42,7 @@
 #include "config.h"
 #endif
 
-#ifndef __arm__
+#ifndef GBA
     #include <time.h>
 #endif
 
@@ -76,7 +76,7 @@
 //in IWRAM.
 //*****************************************
 
-#ifndef __arm__
+#ifndef GBA
 static byte vram1_spare[2560];
 static byte vram2_spare[2560];
 static byte vram3_spare[1024];
@@ -97,6 +97,8 @@ short* floorclip = (short*)&vram3_spare[512];
 //240 bytes.
 short* ceilingclip = (short*)&vram3_spare[512+240];
 
+//992 bytes used. 32 byes left.
+
 
 
 //Stuff alloc'd in VRAM1 memory.
@@ -110,6 +112,24 @@ const fixed_t* distscale_vram = (const fixed_t*)&vram1_spare[580];
 //484 bytes.
 const angle_t* xtoviewangle_vram = (const angle_t*)&vram1_spare[580+480];
 
+//240 Bytes.
+short* wipe_y_lookup = (short*)&vram1_spare[580+480+484];
+
+//384 Bytes
+vissprite_t** vissprite_ptrs = (vissprite_t**)&vram1_spare[580+480+484+240];
+
+//2168 bytes used. 392 bytes left.
+
+
+//Stuff alloc'd in VRAM2 memory.
+
+//240 bytes
+short* screenheightarray = (short*)&vram2_spare[0];
+
+//240 bytes
+short* negonearray = (short*)&vram2_spare[240];
+
+
 #define yslope yslope_vram
 #define distscale distscale_vram
 #define xtoviewangle xtoviewangle_vram
@@ -119,7 +139,7 @@ const angle_t* xtoviewangle_vram = (const angle_t*)&vram1_spare[580+480];
 //GBA has 16kb of Video Memory for columns
 //*****************************************
 
-#ifndef __arm__
+#ifndef GBA
 static byte columnCache[128*128];
 #else
     #define columnCache ((byte*)0x6014000)
@@ -229,6 +249,9 @@ static fixed_t planeheight;
 
 size_t num_vissprite;
 
+boolean highDetail = false;
+
+
 
 //*****************************************
 // Constants
@@ -246,8 +269,8 @@ static const fixed_t projectiony = ((SCREENHEIGHT * (SCREENWIDTH/2) * 320) / 200
 static const fixed_t pspritescale = FRACUNIT*SCREENWIDTH/320;
 static const fixed_t pspriteiscale = FRACUNIT*320/SCREENWIDTH;
 
-static const fixed_t pspriteyscale = (((SCREENHEIGHT*SCREENWIDTH)/SCREENWIDTH) << FRACBITS) / 200;
-static const fixed_t pspriteyiscale = ((UINT_MAX) / ((((SCREENHEIGHT*SCREENWIDTH)/SCREENWIDTH) << FRACBITS) / 200));
+static const fixed_t pspriteyscale = (SCREENHEIGHT << FRACBITS) / 200;
+static const fixed_t pspriteyiscale = ((UINT_MAX) / ((SCREENHEIGHT << FRACBITS) / 200));
 
 
 static const angle_t clipangle = 537395200; //xtoviewangle[0];
@@ -261,7 +284,7 @@ static const fixed_t skyiscale = (FRACUNIT*200)/((SCREENHEIGHT-ST_HEIGHT)+16);
 // will mirror to the upper 8 bits too.
 // it saves an OR and Shift per pixel.
 //********************************************
-#ifdef __arm__
+#ifdef GBA
     typedef byte pixel;
 #else
     typedef unsigned short pixel;
@@ -512,14 +535,16 @@ static const lighttable_t* R_LoadColorMap(int lightlevel)
 #define COLEXTRABITS 9
 #define COLBITS (FRACBITS + COLEXTRABITS)
 
-inline static void R_DrawColumnPixel(pixel* dest, const byte* source, const byte* colormap, unsigned int frac)
+inline static void R_DrawColumnPixel(unsigned short* dest, const byte* source, const byte* colormap, unsigned int frac)
 {
-#ifdef __arm__
-    *dest = colormap[source[frac>>COLBITS]];
+    pixel* d = (pixel*)dest;
+
+#ifdef GBA
+    *d = colormap[source[frac>>COLBITS]];
 #else
     unsigned int color = colormap[source[frac>>COLBITS]];
 
-    *dest = (color | (color << 8));
+    *d = (color | (color << 8));
 #endif
 }
 
@@ -590,7 +615,51 @@ static void R_DrawColumn (const draw_column_vars_t *dcvars)
     }
 }
 
+static void R_DrawColumnHiRes(const draw_column_vars_t *dcvars)
+{
+    int count = (dcvars->yh - dcvars->yl) + 1;
 
+    // Zero length, column does not exceed a pixel.
+    if (count <= 0)
+        return;
+
+    const byte *source = dcvars->source;
+    const byte *colormap = dcvars->colormap;
+
+    volatile unsigned short* dest = drawvars.byte_topleft + ScreenYToOffset(dcvars->yl) + dcvars->x;
+
+    const unsigned int		fracstep = (dcvars->iscale << COLEXTRABITS);
+    unsigned int frac = (dcvars->texturemid + (dcvars->yl - centery)*dcvars->iscale) << COLEXTRABITS;
+
+    // Inner loop that does the actual texture mapping,
+    //  e.g. a DDA-lile scaling.
+    // This is as fast as it gets.
+
+    unsigned int mask;
+    unsigned int shift;
+
+    if(!dcvars->odd_pixel)
+    {
+        mask = 0xff00;
+        shift = 0;
+    }
+    else
+    {
+        mask = 0xff;
+        shift = 8;
+    }
+
+    while(count--)
+    {
+        unsigned int old = *dest;
+        unsigned int color = colormap[source[frac>>COLBITS]];
+
+        *dest = ((old & mask) | (color << shift));
+
+        dest+=SCREENWIDTH;
+        frac+=fracstep;
+    }
+}
 
 #define FUZZOFF (SCREENWIDTH)
 #define FUZZTABLE 50
@@ -641,7 +710,7 @@ static void R_DrawFuzzColumn (const draw_column_vars_t *dcvars)
 
     do
     {        
-        R_DrawColumnPixel((pixel*)dest, &dest[fuzzoffset[fuzzpos]], colormap, 0); dest += SCREENWIDTH;  fuzzpos++;
+        R_DrawColumnPixel(dest, (const byte*)&dest[fuzzoffset[fuzzpos]], colormap, 0); dest += SCREENWIDTH;  fuzzpos++;
 
         if(fuzzpos >= 50)
             fuzzpos = 0;
@@ -713,8 +782,9 @@ static void R_DrawVisSprite(const vissprite_t *vis)
 {
     fixed_t  frac;
 
-    R_DrawColumn_f colfunc;
+    R_DrawColumn_f colfunc = R_DrawColumn;
     draw_column_vars_t dcvars;
+    boolean hires = false;
 
     R_SetDefaultDrawColumnVars(&dcvars);
 
@@ -727,14 +797,10 @@ static void R_DrawVisSprite(const vissprite_t *vis)
         colfunc = R_DrawFuzzColumn;    // killough 3/14/98
     else
     {
-        if (vis->mobjflags & MF_TRANSLATION)
-        {
-            colfunc = R_DrawTranslatedColumn;
-            dcvars.translation = translationtables +
-                    ((vis->mobjflags & MF_TRANSLATION) >> (MF_TRANSSHIFT-8) );
-        }
-        else
-            colfunc = R_DrawColumn; // killough 3/14/98, 4/11/98
+        hires = highDetail;
+
+        if(hires)
+            colfunc = R_DrawColumnHiRes;
     }
 
     // proff 11/06/98: Changed for high-res
@@ -748,11 +814,40 @@ static void R_DrawVisSprite(const vissprite_t *vis)
 
     const patch_t *patch = vis->patch;
 
-    for (dcvars.x=vis->x1 ; dcvars.x<=vis->x2 ; dcvars.x++, frac += vis->xiscale)
+    fixed_t xiscale = vis->xiscale;
+
+    if(hires)
+        xiscale >>= 1;
+
+    dcvars.x = vis->x1;
+    dcvars.odd_pixel = false;
+
+    while(dcvars.x < SCREENWIDTH)
     {
         const column_t* column = (const column_t *) ((const byte *)patch + patch->columnofs[frac >> FRACBITS]);
-
         R_DrawMaskedColumn(colfunc, &dcvars, column);
+
+        frac += xiscale;
+
+        if(((frac >> FRACBITS) >= patch->width) || frac < 0)
+            break;
+
+        dcvars.odd_pixel = true;
+
+        if(!hires)
+            dcvars.x++;
+
+
+        const column_t* column2 = (const column_t *) ((const byte *)patch + patch->columnofs[frac >> FRACBITS]);
+        R_DrawMaskedColumn(colfunc, &dcvars, column2);
+
+        frac += xiscale;
+
+        if(((frac >> FRACBITS) >= patch->width) || frac < 0)
+            break;
+
+        dcvars.x++;
+        dcvars.odd_pixel = false;
     }
 }
 
@@ -980,7 +1075,9 @@ static void R_DrawSprite (const vissprite_t* spr)
 
         }
 
-        if (ds->silhouette & SIL_TOP && spr->gzt > ds->tsilheight)   // top sil
+        fixed_t gzt = spr->gz + (spr->patch->topoffset << FRACBITS);
+
+        if (ds->silhouette & SIL_TOP && gzt > ds->tsilheight)   // top sil
         {
             for (int x=r1; x <= r2; x++)
             {
@@ -1067,7 +1164,7 @@ static void R_DrawPSprite (pspdef_t *psp, int lightlevel)
 
     vis->patch = patch;
 
-    if (_g->viewplayer->powers[pw_invisibility] > 4*32 || _g->viewplayer->powers[pw_invisibility] & 8)
+    if (_g->player.powers[pw_invisibility] > 4*32 || _g->player.powers[pw_invisibility] & 8)
         vis->colormap = NULL;                    // shadow draw
     else if (fixedcolormap)
         vis->colormap = fixedcolormap;           // fixed color
@@ -1087,7 +1184,8 @@ static void R_DrawPSprite (pspdef_t *psp, int lightlevel)
 
 static void R_DrawPlayerSprites(void)
 {
-  int i, lightlevel = _g->viewplayer->mo->subsector->sector->lightlevel;
+
+  int i, lightlevel = _g->player.mo->subsector->sector->lightlevel;
   pspdef_t *psp;
 
   // clip to screen bounds
@@ -1095,7 +1193,7 @@ static void R_DrawPlayerSprites(void)
   mceilingclip = negonearray;
 
   // add all active psprites
-  for (i=0, psp=_g->viewplayer->psprites; i<NUMPSPRITES; i++,psp++)
+  for (i=0, psp=_g->player.psprites; i<NUMPSPRITES; i++,psp++)
     if (psp->state)
       R_DrawPSprite (psp, lightlevel);
 }
@@ -1107,46 +1205,12 @@ static void R_DrawPlayerSprites(void)
 // Rewritten by Lee Killough to avoid using unnecessary
 // linked lists, and to use faster sorting algorithm.
 //
-
-//#define bcopyp(d, s, n) memcpy(d, s, (n) * sizeof(void *))
-#define bcopyp(d, s, n) BlockCopy(d, s, (n) * sizeof(void *))
-
-// killough 9/2/98: merge sort
-
-static void msort(vissprite_t **s, vissprite_t **t, int n)
+static int compare (const void* l, const void* r)
 {
-  if (n >= 16)
-    {
-      int n1 = n/2, n2 = n - n1;
-      vissprite_t **s1 = s, **s2 = s + n1, **d = t;
+    const vissprite_t* vl = *(const vissprite_t**)l;
+    const vissprite_t* vr = *(const vissprite_t**)r;
 
-      msort(s1, t, n1);
-      msort(s2, t, n2);
-
-      while ((*s1)->scale > (*s2)->scale ?
-             (*d++ = *s1++, --n1) : (*d++ = *s2++, --n2));
-
-      if (n2)
-        bcopyp(d, s2, n2);
-      else
-        bcopyp(d, s1, n1);
-
-      bcopyp(s, t, n);
-    }
-  else
-    {
-      int i;
-      for (i = 1; i < n; i++)
-        {
-          vissprite_t *temp = s[i];
-          if (s[i-1]->scale < temp->scale)
-            {
-              int j = i;
-              while ((s[j] = s[j-1])->scale < temp->scale && --j);
-              s[j] = temp;
-            }
-        }
-    }
+    return vr->scale - vl->scale;
 }
 
 static void R_SortVisSprites (void)
@@ -1156,12 +1220,9 @@ static void R_SortVisSprites (void)
     if (i)
     {
         while (--i>=0)
-            _g->vissprite_ptrs[i] = _g->vissprites+i;
+            vissprite_ptrs[i] = _g->vissprites+i;
 
-        // killough 9/22/98: replace qsort with merge sort, since the keys
-        // are roughly in order to begin with, due to BSP rendering.
-
-        msort(_g->vissprite_ptrs, _g->vissprite_ptrs + num_vissprite, num_vissprite);
+        qsort(vissprite_ptrs, num_vissprite, sizeof (vissprite_t*), compare);
     }
 }
 
@@ -1180,7 +1241,7 @@ static void R_DrawMasked(void)
 
     // draw all vissprites back to front
     for (i = num_vissprite ;--i>=0; )
-        R_DrawSprite(_g->vissprite_ptrs[i]);         // killough
+        R_DrawSprite(vissprite_ptrs[i]);         // killough
 
     // render any remaining masked mid textures
 
@@ -1211,14 +1272,17 @@ static void R_DrawMasked(void)
 #pragma GCC push_options
 #pragma GCC optimize ("Ofast")
 
-inline static void R_DrawSpanPixel(pixel* dest, const byte* source, const byte* colormap, unsigned int position)
+inline static void R_DrawSpanPixel(unsigned short* dest, const byte* source, const byte* colormap, unsigned int position)
 {
-#ifdef __arm__
-    *dest = colormap[source[((position >> 4) & 0x0fc0) | (position >> 26)]];
+
+ pixel* d = (pixel*)dest;
+
+#ifdef GBA
+    *d = colormap[source[((position >> 4) & 0x0fc0) | (position >> 26)]];
 #else
     unsigned int color = colormap[source[((position >> 4) & 0x0fc0) | (position >> 26)]];
 
-    *dest = (color | (color << 8));
+    *d = (color | (color << 8));
 #endif
 }
 
@@ -1419,7 +1483,6 @@ static fixed_t R_ScaleFromGlobalAngle(angle_t visangle)
 //
 // R_NewVisSprite
 //
-
 static vissprite_t *R_NewVisSprite(void)
 {
     if (num_vissprite >= MAXVISSPRITES)
@@ -1429,7 +1492,6 @@ static vissprite_t *R_NewVisSprite(void)
 #endif
         return NULL;
     }
-
 
     return _g->vissprites + num_vissprite++;
 }
@@ -1526,20 +1588,13 @@ static void R_ProjectSprite (mobj_t* thing, int lightlevel)
     vis->gx = fx;
     vis->gy = fy;
     vis->gz = fz;
-    vis->gzt = fz + (patch->topoffset << FRACBITS);                          // killough 3/27/98
-    vis->texturemid = vis->gzt - viewz;
+    vis->texturemid = (fz + (patch->topoffset << FRACBITS)) - viewz;
     vis->x1 = x1 < 0 ? 0 : x1;
     vis->x2 = x2 >= SCREENWIDTH ? SCREENWIDTH-1 : x2;
 
 
     //const fixed_t iscale = FixedDiv (FRACUNIT, xscale);
-
-    //It simplifies to this.
-    //const fixed_t iscale = tz / 60;
-
-    //This is a cheap divide by 60.
-    //const fixed_t iscale = (((uint_64_t)tz * 0x8889) >> 16) >> 5;
-    const fixed_t iscale = ((tz >> 6) + (tz >> 10)); // -> x/64 + x/1024 is very close to x/60. (Delta -0.4%)
+    const fixed_t iscale = FixedReciprocal(xscale);
 
     if (flip)
     {
@@ -1648,7 +1703,7 @@ static visplane_t *R_FindPlane(fixed_t height, int picnum, int lightlevel)
 
     BlockSet(check->top, UINT_MAX, sizeof(check->top));
 
-    check->modified = 0;
+    check->modified = false;
 
     return check;
 }
@@ -1779,18 +1834,25 @@ static unsigned int FindColumnCacheItem(unsigned int texture, unsigned int colum
 static const byte* R_ComposeColumn(const unsigned int texture, const texture_t* tex, int texcolumn, unsigned int iscale)
 {
     //static int total, misses;
+    int colmask;
 
-    int colmask = 0xfffe;
-
-    if(tex->width > 8)
+    if(!highDetail)
     {
-        if(iscale > (4 << FRACBITS))
-            colmask = 0xfff0;
-        else if(iscale > (3 << FRACBITS))
-            colmask = 0xfff8;
-        else if (iscale > (2 << FRACBITS))
-            colmask = 0xfffc;
+        colmask = 0xfffe;
+
+        if(tex->width > 8)
+        {
+            if(iscale > (4 << FRACBITS))
+                colmask = 0xfff0;
+            else if(iscale > (3 << FRACBITS))
+                colmask = 0xfff8;
+            else if (iscale > (2 << FRACBITS))
+                colmask = 0xfffc;
+        }
     }
+    else
+        colmask = 0xffff;
+
 
     const int xc = (texcolumn & colmask) & tex->widthmask;
 
@@ -1909,7 +1971,7 @@ static void R_RenderSegLoop (int rw_x)
             {
                 ceilingplane->top[rw_x] = top;
                 ceilingplane->bottom[rw_x] = bottom;
-                ceilingplane->modified = 1;
+                ceilingplane->modified = true;
             }
             // SoM: this should be set here
             cc_rwx = bottom;
@@ -1928,7 +1990,7 @@ static void R_RenderSegLoop (int rw_x)
             {
                 floorplane->top[rw_x] = top;
                 floorplane->bottom[rw_x] = bottom;
-                floorplane->modified = 1;
+                floorplane->modified = true;
             }
             // SoM: This should be set here to prevent overdraw
             fc_rwx = top;
@@ -2344,14 +2406,14 @@ static void R_StoreWallRange(const int start, const int stop)
     // save sprite clipping info
     if ((ds_p->silhouette & SIL_TOP || maskedtexture) && !ds_p->sprtopclip)
     {
-        ByteCopy(_g->lastopening, ceilingclip+start, sizeof(short)*(rw_stopx-start));
+        ByteCopy((byte*)_g->lastopening, (const byte*)(ceilingclip+start), sizeof(short)*(rw_stopx-start));
         ds_p->sprtopclip = _g->lastopening - start;
         _g->lastopening += rw_stopx - start;
     }
 
     if ((ds_p->silhouette & SIL_BOTTOM || maskedtexture) && !ds_p->sprbottomclip)
     {
-        ByteCopy(_g->lastopening, floorclip+start, sizeof(short)*(rw_stopx-start));
+        ByteCopy((byte*)_g->lastopening, (const byte*)(floorclip+start), sizeof(short)*(rw_stopx-start));
         ds_p->sprbottomclip = _g->lastopening - start;
         _g->lastopening += rw_stopx - start;
     }
@@ -2848,10 +2910,6 @@ static void R_ClearPlanes(void)
 
     _g->lastopening = _g->openings;
 
-    // scale will be unit scale at SCREENWIDTH/2 distance
-    //basexscale = FixedDiv (viewsin,projection);
-    //baseyscale = FixedDiv (viewcos,projection);
-
     basexscale = FixedMul(viewsin,iprojection);
     baseyscale = FixedMul(viewcos,iprojection);
 }
@@ -2903,11 +2961,10 @@ void V_DrawPatchNoScale(int x, int y, const patch_t* patch)
 
             unsigned int count = column->length;
 
-
             while (count--)
             {
                 unsigned int color = *source++;
-                unsigned short* dest16 = (unsigned short*)dest;
+                volatile unsigned short* dest16 = (volatile unsigned short*)dest;
 
                 unsigned int old = *dest16;
 
@@ -2924,11 +2981,6 @@ void V_DrawPatchNoScale(int x, int y, const patch_t* patch)
         }
     }
 }
-
-
-
-
-
 
 //
 // P_DivlineSide
@@ -3124,7 +3176,7 @@ boolean P_SetMobjState(mobj_t* mobj, statenum_t state)
             }
             else
             {
-                if(mobj->info->missilestate && (state >= mobj->info->missilestate) && (state < mobj->info->painstate))
+                if(mobjinfo[mobj->type].missilestate && (state >= mobjinfo[mobj->type].missilestate) && (state < mobjinfo[mobj->type].painstate))
                     A_CyberAttack(mobj);
                 else
                     st->action(mobj);
@@ -3254,7 +3306,7 @@ int I_GetTime(void)
 {
     int thistimereply;
 
-#ifndef __arm__
+#ifndef GBA
 
     clock_t now = clock();
 

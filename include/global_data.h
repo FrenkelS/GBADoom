@@ -47,14 +47,6 @@ typedef struct globals_t
 
 enum automapmode_e automapmode; // Mode that the automap is in
 
-// location of window on screen
-int  f_x;
-int  f_y;
-
-// size of window on screen
-int  f_w;
-int  f_h;
-
 mpoint_t m_paninc;    // how far the window pans each tic (map coords)
 
 fixed_t m_x, m_y;     // LL x,y window location on the map (map coords)
@@ -115,6 +107,7 @@ int pagelump; // CPhipps - const
 
 boolean singletics; // debug flag to cancel adaptiveness
 boolean advancedemo;
+boolean fps_show;
 
 unsigned int gamma;
 
@@ -123,7 +116,7 @@ unsigned int gamma;
 unsigned int fps_timebefore;
 unsigned int fps_frames;
 unsigned int fps_framerate;
-boolean fps_show;
+
 
 //******************************************************************************
 //doomstat.c
@@ -160,12 +153,6 @@ boolean         castattacking;
 boolean         castdeath;
 
 //******************************************************************************
-//f_wipe.c
-//******************************************************************************
-
-short y_lookup[SCREENWIDTH];
-
-//******************************************************************************
 //g_game.c
 //******************************************************************************
 
@@ -198,9 +185,6 @@ int             longtics;
 boolean gamekeydown[NUMKEYS];
 int     turnheld;       // for accelerative turning
 
-// Game events info
-buttoncode_t special_event; // Event triggered by local player, to send
-
 gamestate_t prevgamestate;
 
 skill_t d_skill;
@@ -213,9 +197,6 @@ byte  savegameslot;         // Slot to load if gameaction == ga_loadgame
 boolean secretexit;
 
 boolean         respawnmonsters;
-boolean         paused;
-// CPhipps - moved *_loadgame vars here
-boolean command_loadgame;
 
 boolean         usergame;      // ok to save / end game
 boolean         timingdemo;    // if true, exit with report on completion
@@ -244,12 +225,6 @@ boolean    headsupactive;
 //******************************************************************************
 //i_audio.c
 //******************************************************************************
-
-boolean sound_inited;
-
-unsigned int music_looping;
-unsigned int music_volume;
-unsigned int music_init;
 
 int lasttimereply;
 int basetime;
@@ -280,6 +255,8 @@ unsigned int cheat_buffer;
 int showMessages;    // Show messages has default, 0 = off, 1 = on
 
 int alwaysRun;
+
+int highDetail;
 
 int messageToPrint;  // 1 = message to be printed
 
@@ -324,11 +301,7 @@ ceilinglist_t *activeceilings;
 //p_enemy.c
 //******************************************************************************
 
-mobj_t *current_actor;
-
 fixed_t dropoff_deltax, dropoff_deltay, floorz;
-
-int current_allaround;
 
 mobj_t* corpsehit;
 fixed_t viletryx;
@@ -478,7 +451,6 @@ fixed_t bulletslope;
 int      numvertexes;
 const vertex_t *vertexes;
 
-int      numsegs;
 const seg_t    *segs;
 
 int      numsectors;
@@ -534,6 +506,9 @@ const byte *rejectmatrix; // cph - const*
 // Maintain single and multi player starting spots.
 mapthing_t playerstarts[MAXPLAYERS];
 
+mobj_t*      thingPool;
+unsigned int thingPoolSize;
+
 
 //******************************************************************************
 //p_sight.c
@@ -547,9 +522,6 @@ los_t los; // cph - made static
 
 anim_t*     lastanim;
 anim_t		anims[MAXANIMS];
-
-pusher_t* tmpusher; // pusher structure for blockmap searches
-
 
 //******************************************************************************
 //p_switch.c
@@ -587,7 +559,7 @@ boolean onground; // whether player is on ground or in air
 //r_data.c
 //******************************************************************************
 
-int       firstflat, lastflat, numflats;
+int       firstflat, numflats;
 int       firstspritelump, lastspritelump, numspritelumps;
 int       numtextures;
 
@@ -608,14 +580,6 @@ int fuzzpos;
 //******************************************************************************
 
 unsigned short validcount;         // increment every time a check is made
-
-
-
-player_t *viewplayer;
-
-// killough 3/20/98, 4/4/98: end dynamic colormaps
-
-
 
 //******************************************************************************
 //r_patch.c
@@ -680,8 +644,6 @@ spriteframe_t sprtemp[MAX_SPRITE_FRAMES];
 int maxframe;
 
 vissprite_t vissprites[MAXVISSPRITES];
-vissprite_t* vissprite_ptrs[MAXVISSPRITES*2];  // killough
-
 
 
 //******************************************************************************
@@ -711,10 +673,6 @@ boolean mus_paused;
 //******************************************************************************
 //st_stuff.c
 //******************************************************************************
-
-// main player in game
-player_t *plyr;
-
 
 unsigned int st_needrefresh;
 
@@ -795,20 +753,11 @@ boolean st_statusbaron;
 screeninfo_t screens[NUM_SCREENS];
 
 //******************************************************************************
-//w_wad.c
-//******************************************************************************
-
-int        numlumps;         // killough
-
-//******************************************************************************
 //wi_stuff.c
 //******************************************************************************
 
 // used to accelerate or skip a stage
 int   acceleratestage;           // killough 3/28/98: made global
-
-// wbs->pnum
-int    me;
 
  // specifies current state
 stateenum_t  state;

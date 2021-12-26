@@ -40,9 +40,6 @@
 // Init at program start...
 void I_InitSound(void);
 
-// ... shut down and relase at program termination.
-void I_ShutdownSound(void);
-
 //
 //  SFX I/O
 //
@@ -55,7 +52,6 @@ int I_StartSound(int id, int channel, int vol, int sep);
 //
 //  MUSIC I/O
 //
-void I_InitMusic(void);
 
 // Volume.
 void I_SetMusicVolume(int volume);

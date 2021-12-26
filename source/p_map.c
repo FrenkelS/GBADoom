@@ -105,7 +105,7 @@ boolean P_TeleportMove (mobj_t* thing,fixed_t x,fixed_t y, boolean boss)
   subsector_t*  newsubsec;
 
   /* killough 8/9/98: make telefragging more consistent, preserve compatibility */
-  _g->telefrag = thing->player || boss;
+  _g->telefrag = P_MobjIsPlayer(thing) || boss;
 
   // kill anything occupying the position
 
@@ -261,7 +261,7 @@ boolean PIT_CheckLine (const line_t* ld)
   return _g->tmunstuck && !untouched(ld);  // killough 8/1/98: allow escape
 
       // killough 8/9/98: monster-blockers don't affect friends
-      if (!(_g->tmthing->flags & MF_FRIEND || _g->tmthing->player)
+      if (!(_g->tmthing->flags & MF_FRIEND || P_MobjIsPlayer(_g->tmthing))
     && ld->flags & ML_BLOCKMONSTERS)
   return false; // block monsters only
     }
@@ -339,14 +339,14 @@ static boolean PIT_CheckThing(mobj_t *thing) // killough 3/26/98: make static
       // A flying skull is smacking something.
       // Determine damage amount, and the skull comes to a dead stop.
 
-      int damage = ((P_Random()%8)+1)*_g->tmthing->info->damage;
+      int damage = ((P_Random()%8)+1)*mobjinfo[_g->tmthing->type].damage;
 
       P_DamageMobj (thing, _g->tmthing, _g->tmthing, damage);
 
       _g->tmthing->flags &= ~MF_SKULLFLY;
       _g->tmthing->momx = _g->tmthing->momy = _g->tmthing->momz = 0;
 
-      P_SetMobjState (_g->tmthing, _g->tmthing->info->spawnstate);
+      P_SetMobjState (_g->tmthing, mobjinfo[_g->tmthing->type].spawnstate);
 
       return false;   // stop moving
     }
@@ -398,7 +398,7 @@ static boolean PIT_CheckThing(mobj_t *thing) // killough 3/26/98: make static
 
       // damage / explode
 
-      damage = ((P_Random()%8)+1)*_g->tmthing->info->damage;
+      damage = ((P_Random()%8)+1)*mobjinfo[_g->tmthing->type].damage;
       P_DamageMobj (thing, _g->tmthing, _g->tmthing->target, damage);
 
       // don't traverse any more
@@ -526,8 +526,8 @@ boolean P_CheckPosition (mobj_t* thing,fixed_t x,fixed_t y)
   _g->floorline = _g->blockline = _g->ceilingline = NULL; // killough 8/1/98
 
   // Whether object can get out of a sticky situation:
-  _g->tmunstuck = thing->player &&          /* only players */
-    thing->player->mo == thing; /* not under old demos */
+  _g->tmunstuck = P_MobjIsPlayer(thing) &&          /* only players */
+    P_MobjIsPlayer(thing)->mo == thing; /* not under old demos */
 
   // The base floor / ceiling is from the subsector
   // that contains the point.
@@ -944,12 +944,12 @@ void P_SlideMove(mobj_t *mo)
 
       /* killough 10/98: affect the bobbing the same way (but not voodoo dolls)
        * cph - DEMOSYNC? */
-      if (mo->player && mo->player->mo == mo)
+  if (P_MobjIsPlayer(mo) && P_MobjIsPlayer(mo)->mo == mo)
   {
-    if (D_abs(mo->player->momx) > D_abs(_g->tmxmove))
-      mo->player->momx = _g->tmxmove;
-    if (D_abs(mo->player->momy) > D_abs(_g->tmymove))
-      mo->player->momy = _g->tmymove;
+    if (D_abs(P_MobjIsPlayer(mo)->momx) > D_abs(_g->tmxmove))
+      P_MobjIsPlayer(mo)->momx = _g->tmxmove;
+    if (D_abs(P_MobjIsPlayer(mo)->momy) > D_abs(_g->tmymove))
+      P_MobjIsPlayer(mo)->momy = _g->tmymove;
   }
     }  // killough 3/15/98: Allow objects to drop off ledges:
   while (!P_TryMove(mo, mo->x+_g->tmxmove, mo->y+_g->tmymove, true));
@@ -1025,7 +1025,7 @@ boolean PTR_AimTraverse (intercept_t* in)
     /* killough 7/19/98, 8/2/98:
    * friends don't aim at friends (except players), at least not first
    */
-    if (th->flags & _g->shootthing->flags & _g->aim_flags_mask && !th->player)
+    if (th->flags & _g->shootthing->flags & _g->aim_flags_mask && !P_MobjIsPlayer(th))
         return true;
 
     // check angles to see if the thing can be aimed at

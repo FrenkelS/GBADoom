@@ -63,7 +63,7 @@
 
 //#define __arm__
 
-#ifdef __arm__
+#ifdef GBA
 
 #include <gba.h>
 #include <maxmod.h>    // Maxmod definitions for GBA
@@ -278,7 +278,7 @@ static const audio_map_t soundMap[NUMSFX] =
 //
 static int addsfx(int sfxid, int channel, int volume, int sep)
 {
-#ifdef __arm__
+#ifdef GBA
 
     int mmvol = volume * 4;
 
@@ -321,34 +321,17 @@ int I_StartSound(int id, int channel, int vol, int sep)
 	return channel;
 }
 
-void I_ShutdownSound(void)
-{
-    if (_g->sound_inited)
-	{
-		lprintf(LO_INFO, "I_ShutdownSound: ");
-		lprintf(LO_INFO, "\n");
-        _g->sound_inited = false;
-	}
-}
-
 //static SDL_AudioSpec audio;
 
 void I_InitSound(void)
 {
 
-#ifdef __arm__
+#ifdef GBA
     mmInitDefault(soundbank_bin, 12);
 #endif
 
-	if (!nomusicparm)
-		I_InitMusic();
-
 	// Finished initialization.
     lprintf(LO_INFO,"I_InitSound: sound ready");
-}
-
-void I_InitMusic(void)
-{
 }
 
 void I_PlaySong(int handle, int looping)
@@ -356,7 +339,7 @@ void I_PlaySong(int handle, int looping)
     if(handle == mus_None)
         return;
 
-#ifdef __arm__
+#ifdef GBA
     mm_pmode mode = looping ? MM_PLAY_LOOP : MM_PLAY_ONCE;
 
     unsigned int song = musicMap[handle].mm_num;
@@ -368,28 +351,28 @@ void I_PlaySong(int handle, int looping)
 
 void I_PauseSong (int handle)
 {
-#ifdef __arm__
+#ifdef GBA
     mmPause();
 #endif
 }
 
 void I_ResumeSong (int handle)
 {
-#ifdef __arm__
+#ifdef GBA
     mmResume();
 #endif
 }
 
 void I_StopSong(int handle)
 {
-#ifdef __arm__
+#ifdef GBA
     mmStop();
 #endif
 }
 
 void I_SetMusicVolume(int volume)
 {
-#ifdef __arm__
+#ifdef GBA
     int mmvol = volume * 32;
 
     mmSetModuleVolume(mmvol);

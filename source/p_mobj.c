@@ -69,8 +69,8 @@ void P_ExplodeMissile (mobj_t* mo)
 
   mo->flags &= ~MF_MISSILE;
 
-  if (mo->info->deathsound)
-    S_StartSound (mo, mo->info->deathsound);
+  if (mobjinfo[mo->type].deathsound)
+    S_StartSound (mo, mobjinfo[mo->type].deathsound);
   }
 
 
@@ -95,12 +95,12 @@ void P_XYMovement (mobj_t* mo)
             mo->flags &= ~MF_SKULLFLY;
             mo->momz = 0;
 
-            P_SetMobjState (mo, mo->info->spawnstate);
+            P_SetMobjState (mo, mobjinfo[mo->type].spawnstate);
         }
         return;
     }
 
-    player = mo->player;
+    player = P_MobjIsPlayer(mo);
 
     if (mo->momx > MAXMOVE)
         mo->momx = MAXMOVE;
@@ -273,14 +273,14 @@ void P_XYMovement (mobj_t* mo)
 void P_ZMovement (mobj_t* mo)
 {
 
-  // check for smooth step up
+    // check for smooth step up
 
-  if (mo->player &&
-      mo->player->mo == mo &&  // killough 5/12/98: exclude voodoo dolls
-      mo->z < mo->floorz)
+    if (P_MobjIsPlayer(mo) &&
+            P_MobjIsPlayer(mo)->mo == mo &&  // killough 5/12/98: exclude voodoo dolls
+            mo->z < mo->floorz)
     {
-    mo->player->viewheight -= mo->floorz-mo->z;
-    mo->player->deltaviewheight = (VIEWHEIGHT - mo->player->viewheight)>>3;
+        P_MobjIsPlayer(mo)->viewheight -= mo->floorz-mo->z;
+        P_MobjIsPlayer(mo)->deltaviewheight = (VIEWHEIGHT - P_MobjIsPlayer(mo)->viewheight)>>3;
     }
 
   // adjust altitude
@@ -331,15 +331,15 @@ void P_ZMovement (mobj_t* mo)
 
     if (mo->momz < 0)
       {
-    if (mo->player && /* killough 5/12/98: exclude voodoo dolls */
-        mo->player->mo == mo && mo->momz < -GRAVITY*8)
+    if (P_MobjIsPlayer(mo) && /* killough 5/12/98: exclude voodoo dolls */
+        P_MobjIsPlayer(mo)->mo == mo && mo->momz < -GRAVITY*8)
       {
         // Squat down.
         // Decrease viewheight for a moment
         // after hitting the ground (hard),
         // and utter appropriate sound.
 
-        mo->player->deltaviewheight = mo->momz>>3;
+        P_MobjIsPlayer(mo)->deltaviewheight = mo->momz>>3;
         if (mo->health > 0) /* cph - prevent "oof" when dead */
     S_StartSound (mo, sfx_oof);
       }
@@ -449,7 +449,7 @@ void P_NightmareRespawn(mobj_t* mobj)
     // spawn the new monster
 
     //mthing = &mobj->spawnpoint;
-    if (mobj->info->flags & MF_SPAWNCEILING)
+    if (mobjinfo[mobj->type].flags & MF_SPAWNCEILING)
         z = ONCEILINGZ;
     else
         z = ONFLOORZ;
@@ -507,61 +507,85 @@ static think_t P_ThinkerFunctionForType(mobjtype_t type, mobj_t* mobj)
 //
 // P_SpawnMobj
 //
-mobj_t* P_SpawnMobj(fixed_t x,fixed_t y,fixed_t z,mobjtype_t type)
-  {
-  mobj_t*     mobj;
-  const state_t*    st;
-  const mobjinfo_t* info;
 
-  mobj = Z_Malloc (sizeof(*mobj), PU_LEVEL, NULL);
-  memset (mobj, 0, sizeof (*mobj));
-  info = &mobjinfo[type];
-  mobj->type = type;
-  mobj->info = info;
-  mobj->x = x;
-  mobj->y = y;
-  mobj->radius = info->radius;
-  mobj->height = info->height;                                      // phares
-  mobj->flags  = info->flags;
+static mobj_t* P_NewMobj()
+{
+    mobj_t* mobj = NULL;
+
+    for(int i = _g->thingPoolSize-1; i >= 0; i--)
+    {
+        if(_g->thingPool[i].type == MT_NOTHING)
+        {
+            mobj = &_g->thingPool[i];
+            memset (mobj, 0, sizeof (*mobj));
+
+            mobj->flags = MF_POOLED;
+            return mobj;
+        }
+    }
+
+    if(mobj == NULL)
+    {
+        mobj = Z_Malloc (sizeof(*mobj), PU_LEVEL, NULL);
+        memset (mobj, 0, sizeof (*mobj));
+    }
+
+    return mobj;
+}
+
+mobj_t* P_SpawnMobj(fixed_t x,fixed_t y,fixed_t z,mobjtype_t type)
+{
+    const state_t*    st;
+    const mobjinfo_t* info;
+
+    mobj_t*     mobj = P_NewMobj();
+
+    info = &mobjinfo[type];
+    mobj->type = type;
+    mobj->x = x;
+    mobj->y = y;
+    mobj->radius = info->radius;
+    mobj->height = info->height;                                      // phares
+    mobj->flags  |= info->flags;
 
     if (type == MT_PLAYER)         // Except in old demos, players
-      mobj->flags |= MF_FRIEND;    // are always friends.
+        mobj->flags |= MF_FRIEND;    // are always friends.
 
-  mobj->health = info->spawnhealth;
+    mobj->health = info->spawnhealth;
 
-  if (_g->gameskill != sk_nightmare)
-    mobj->reactiontime = info->reactiontime;
+    if (_g->gameskill != sk_nightmare)
+        mobj->reactiontime = info->reactiontime;
 
-  // do not set the state with P_SetMobjState,
-  // because action routines can not be called yet
+    // do not set the state with P_SetMobjState,
+    // because action routines can not be called yet
 
-  st = &states[info->spawnstate];
+    st = &states[info->spawnstate];
 
-  mobj->state  = st;
-  mobj->tics   = st->tics;
-  mobj->sprite = st->sprite;
-  mobj->frame  = st->frame;
-  mobj->touching_sectorlist = NULL; // NULL head of sector list // phares 3/13/98
+    mobj->state  = st;
+    mobj->tics   = st->tics;
+    mobj->sprite = st->sprite;
+    mobj->frame  = st->frame;
+    mobj->touching_sectorlist = NULL; // NULL head of sector list // phares 3/13/98
 
-  // set subsector and/or block links
+    // set subsector and/or block links
 
-  P_SetThingPosition (mobj);
+    P_SetThingPosition (mobj);
 
-  mobj->dropoffz =           /* killough 11/98: for tracking dropoffs */
-  mobj->floorz   = mobj->subsector->sector->floorheight;
-  mobj->ceilingz = mobj->subsector->sector->ceilingheight;
+    mobj->dropoffz =           /* killough 11/98: for tracking dropoffs */
+            mobj->floorz   = mobj->subsector->sector->floorheight;
+    mobj->ceilingz = mobj->subsector->sector->ceilingheight;
 
-  mobj->z = z == ONFLOORZ ? mobj->floorz : z == ONCEILINGZ ?
-    mobj->ceilingz - mobj->height : z;
+    mobj->z = z == ONFLOORZ ? mobj->floorz : z == ONCEILINGZ ?
+                                  mobj->ceilingz - mobj->height : z;
 
-  mobj->thinker.function = P_ThinkerFunctionForType(type, mobj);
+    mobj->thinker.function = P_ThinkerFunctionForType(type, mobj);
 
-  mobj->target = mobj->tracer = mobj->lastenemy = NULL;
-  P_AddThinker (&mobj->thinker);
-  if (!((mobj->flags ^ MF_COUNTKILL) & (MF_FRIEND | MF_COUNTKILL)))
-    _g->totallive++;
-  return mobj;
-  }
+    mobj->target = mobj->tracer = mobj->lastenemy = NULL;
+    P_AddThinker (&mobj->thinker);
+    if (!((mobj->flags ^ MF_COUNTKILL) & (MF_FRIEND | MF_COUNTKILL)))
+        _g->totallive++;
+    return mobj;
+}
 
 //
 // P_RemoveMobj
@@ -601,7 +625,7 @@ void P_RemoveMobj (mobj_t* mobj)
   }
   // free block
 
-  P_RemoveThinker (&mobj->thinker);
+  P_RemoveThing (mobj);
 }
 
 
@@ -672,7 +696,6 @@ void P_SpawnPlayer (int n, const mapthing_t* mthing)
   // set color translations for player sprites
 
   mobj->angle      = ANG45 * (mthing->angle/45);
-  mobj->player     = p;
   mobj->health     = p->health;
 
   p->mo            = mobj;
@@ -734,112 +757,108 @@ boolean P_IsDoomnumAllowed(int doomnum)
 //
 
 void P_SpawnMapThing (const mapthing_t* mthing)
-  {
-  int     i;
-  //int     bit;
-  mobj_t* mobj;
-  fixed_t x;
-  fixed_t y;
-  fixed_t z;
-  int options = mthing->options; /* cph 2001/07/07 - make writable copy */
+{
+    int     i;
+    mobj_t* mobj;
+    fixed_t x;
+    fixed_t y;
+    fixed_t z;
+    int options = mthing->options; /* cph 2001/07/07 - make writable copy */
 
-  // killough 2/26/98: Ignore type-0 things as NOPs
-  // phares 5/14/98: Ignore Player 5-8 starts (for now)
+    // killough 2/26/98: Ignore type-0 things as NOPs
+    // phares 5/14/98: Ignore Player 5-8 starts (for now)
 
-  switch(mthing->type)
+    switch(mthing->type)
     {
-  case 0:
-  case DEN_PLAYER5:
-  case DEN_PLAYER6:
-  case DEN_PLAYER7:
-  case DEN_PLAYER8:
-    return;
+        case 0:
+        case DEN_PLAYER5:
+        case DEN_PLAYER6:
+        case DEN_PLAYER7:
+        case DEN_PLAYER8:
+            return;
     }
 
-  // killough 11/98: clear flags unused by Doom
-  //
-  // We clear the flags unused in Doom if we see flag mask 256 set, since
-  // it is reserved to be 0 under the new scheme. A 1 in this reserved bit
-  // indicates it's a Doom wad made by a Doom editor which puts 1's in
-  // bits that weren't used in Doom (such as HellMaker wads). So we should
-  // then simply ignore all upper bits.
+    // killough 11/98: clear flags unused by Doom
+    //
+    // We clear the flags unused in Doom if we see flag mask 256 set, since
+    // it is reserved to be 0 under the new scheme. A 1 in this reserved bit
+    // indicates it's a Doom wad made by a Doom editor which puts 1's in
+    // bits that weren't used in Doom (such as HellMaker wads). So we should
+    // then simply ignore all upper bits.
 
-  if (options & MTF_RESERVED)
-  {
-      lprintf(LO_WARN, "P_SpawnMapThing: correcting bad flags (%u) (thing type %d)\n",
-        options, mthing->type);
-    options &= MTF_EASY|MTF_NORMAL|MTF_HARD|MTF_AMBUSH|MTF_NOTSINGLE;
-  }
-
-  // check for players specially
-
-  //Only care about start spot for player 1.
-  if(mthing->type == 1)
-  {
-      _g->playerstarts[0] = *mthing;
-      _g->playerstarts[0].options = 1;
-      P_SpawnPlayer (0, &_g->playerstarts[0]);
-      return;
-  }
-
-  // check for apropriate skill level
-
-  /* jff "not single" thing flag */
-  if (options & MTF_NOTSINGLE)
-    return;
-
-  // killough 11/98: simplify
-  if (_g->gameskill == sk_baby || _g->gameskill == sk_easy ?
-      !(options & MTF_EASY) :
-      _g->gameskill == sk_hard || _g->gameskill == sk_nightmare ?
-      !(options & MTF_HARD) : !(options & MTF_NORMAL))
-    return;
-
-  // find which type to spawn
-
-  // killough 8/23/98: use table for faster lookup
-  i = P_FindDoomedNum(mthing->type);
-
-  // phares 5/16/98:
-  // Do not abort because of an unknown thing. Ignore it, but post a
-  // warning message for the player.
-
-  if (i == NUMMOBJTYPES)
+    if (options & MTF_RESERVED)
     {
+        lprintf(LO_WARN, "P_SpawnMapThing: correcting bad flags (%u) (thing type %d)\n",
+                options, mthing->type);
+        options &= MTF_EASY|MTF_NORMAL|MTF_HARD|MTF_AMBUSH|MTF_NOTSINGLE;
+    }
+
+    // check for players specially
+
+    //Only care about start spot for player 1.
+    if(mthing->type == 1)
+    {
+        _g->playerstarts[0] = *mthing;
+        _g->playerstarts[0].options = 1;
+        P_SpawnPlayer (0, &_g->playerstarts[0]);
         return;
     }
 
-  x = mthing->x << FRACBITS;
-  y = mthing->y << FRACBITS;
+    // check for apropriate skill level
 
-  if (mobjinfo[i].flags & MF_SPAWNCEILING)
-    z = ONCEILINGZ;
-  else
-    z = ONFLOORZ;
+    /* jff "not single" thing flag */
+    if (options & MTF_NOTSINGLE)
+        return;
 
-  mobj = P_SpawnMobj (x,y,z, i);
-  //mobj->spawnpoint = *mthing;
+    // killough 11/98: simplify
+    if (_g->gameskill == sk_baby || _g->gameskill == sk_easy ?
+            !(options & MTF_EASY) :
+            _g->gameskill == sk_hard || _g->gameskill == sk_nightmare ?
+            !(options & MTF_HARD) : !(options & MTF_NORMAL))
+        return;
 
-  if (mobj->tics > 0)
-    mobj->tics = 1 + (P_Random () % mobj->tics);
+    // find which type to spawn
 
-  if (!(mobj->flags & MF_FRIEND) &&
-      options & MTF_FRIEND)
+    // killough 8/23/98: use table for faster lookup
+    i = P_FindDoomedNum(mthing->type);
+
+    // phares 5/16/98:
+    // Do not abort because of an unknown thing. Ignore it, but post a
+    // warning message for the player.
+
+    if (i == NUMMOBJTYPES)
+        return;
+
+    x = mthing->x << FRACBITS;
+    y = mthing->y << FRACBITS;
+
+    if (mobjinfo[i].flags & MF_SPAWNCEILING)
+        z = ONCEILINGZ;
+    else
+        z = ONFLOORZ;
+
+    mobj = P_SpawnMobj (x,y,z, i);
+
+    if (mobj->tics > 0)
+        mobj->tics = 1 + (P_Random () % mobj->tics);
+
+    if (!(mobj->flags & MF_FRIEND) &&
+            options & MTF_FRIEND)
     {
-      mobj->flags |= MF_FRIEND;            // killough 10/98:
+        mobj->flags |= MF_FRIEND;            // killough 10/98:
     }
 
-  /* killough 7/20/98: exclude friends */
-  if (!((mobj->flags ^ MF_COUNTKILL) & (MF_FRIEND | MF_COUNTKILL)))
-    _g->totalkills++;
+    /* killough 7/20/98: exclude friends */
+    if (!((mobj->flags ^ MF_COUNTKILL) & (MF_FRIEND | MF_COUNTKILL)))
+        _g->totalkills++;
 
-  if (mobj->flags & MF_COUNTITEM)
-    _g->totalitems++;
+    if (mobj->flags & MF_COUNTITEM)
+        _g->totalitems++;
 
-  mobj->angle = ANG45 * (mthing->angle/45);
-  if (options & MTF_AMBUSH)
-    mobj->flags |= MF_AMBUSH;
-  }
+    mobj->angle = ANG45 * (mthing->angle/45);
+    if (options & MTF_AMBUSH)
+        mobj->flags |= MF_AMBUSH;
+}
 
 
 //
@@ -935,8 +954,8 @@ mobj_t* P_SpawnMissile(mobj_t* source,mobj_t* dest,mobjtype_t type)
 
   th = P_SpawnMobj (source->x,source->y,source->z + 4*8*FRACUNIT,type);
 
-  if (th->info->seesound)
-    S_StartSound (th, th->info->seesound);
+  if (mobjinfo[th->type].seesound)
+    S_StartSound (th, mobjinfo[th->type].seesound);
 
   P_SetTarget(&th->target, source);    // where it came from
   an = R_PointToAngle2 (source->x, source->y, dest->x, dest->y);
@@ -951,11 +970,11 @@ mobj_t* P_SpawnMissile(mobj_t* source,mobj_t* dest,mobjtype_t type)
 
   th->angle = an;
   an >>= ANGLETOFINESHIFT;
-  th->momx = FixedMul (th->info->speed, finecosine[an]);
-  th->momy = FixedMul (th->info->speed, finesine[an]);
+  th->momx = FixedMul (mobjinfo[th->type].speed, finecosine[an]);
+  th->momy = FixedMul (mobjinfo[th->type].speed, finesine[an]);
 
   dist = P_AproxDistance (dest->x - source->x, dest->y - source->y);
-  dist = dist / th->info->speed;
+  dist = dist / mobjinfo[th->type].speed;
 
   if (dist < 1)
     dist = 1;
@@ -1005,14 +1024,24 @@ void P_SpawnPlayerMissile(mobj_t* source,mobjtype_t type)
 
   th = P_SpawnMobj (x,y,z, type);
 
-  if (th->info->seesound)
-    S_StartSound (th, th->info->seesound);
+  if (mobjinfo[th->type].seesound)
+    S_StartSound (th, mobjinfo[th->type].seesound);
 
   P_SetTarget(&th->target, source);
   th->angle = an;
-  th->momx = FixedMul(th->info->speed,finecosine[an>>ANGLETOFINESHIFT]);
-  th->momy = FixedMul(th->info->speed,finesine[an>>ANGLETOFINESHIFT]);
-  th->momz = FixedMul(th->info->speed,slope);
+  th->momx = FixedMul(mobjinfo[th->type].speed,finecosine[an>>ANGLETOFINESHIFT]);
+  th->momy = FixedMul(mobjinfo[th->type].speed,finesine[an>>ANGLETOFINESHIFT]);
+  th->momz = FixedMul(mobjinfo[th->type].speed,slope);
 
   P_CheckMissileSpawn(th);
   }
+
+struct player_s* P_MobjIsPlayer(const mobj_t* mobj)
+{
+    if(mobj == _g->player.mo)
+    {
+        return &_g->player;
+    }
+
+    return NULL;
+}

@@ -138,9 +138,9 @@ typedef struct
     short textureoffset; // add this to the calculated texture column
     short rowoffset;     // add this to the calculated texture top
 
-    short toptexture;      // Texture indices. We do not maintain names here.
-    short bottomtexture;
-    short midtexture;
+    unsigned int toptexture:10;
+    unsigned int bottomtexture:10;
+    unsigned int midtexture:10;
 } side_t;
 
 //
@@ -304,7 +304,7 @@ typedef byte  lighttable_t;
 typedef struct drawseg_s
 {
   const seg_t *curline;
-  int x1, x2;
+  short x1, x2;
   fixed_t scale1, scale2, scalestep;
   int silhouette;                       // 0=none, 1=bottom, 2=top, 3=both
   fixed_t bsilheight;                   // do not clip sprites above this
@@ -352,7 +352,7 @@ typedef struct vissprite_s
 {
   short x1, x2;
   fixed_t gx, gy;              // for line side calculation
-  fixed_t gz, gzt;             // global bottom / top for silhouette clipping
+  fixed_t gz;                   // global bottom for silhouette clipping
   fixed_t startfrac;           // horizontal position of x1
   fixed_t scale;
   fixed_t xiscale;             // negative if flipped
@@ -425,17 +425,19 @@ typedef struct visplane
   short picnum, lightlevel;
   short minx, maxx;
   fixed_t height;
-  unsigned int modified;
+  boolean modified;
 
-  //byte		pad1;
+  byte		pad1;
+  byte		pad2;
+  byte		pad3;
   // Here lies the rub for all
   //  dynamic resize/change of resolution.
   byte		top[SCREENWIDTH];
-  byte		pad2;
-  byte		pad3;
+  byte		pad4;
+  byte		pad5;
   // See above.
   byte		bottom[SCREENWIDTH];
-  byte		pad4;
+  byte		pad6;
 
 } visplane_t;
 

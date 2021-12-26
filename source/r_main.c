@@ -81,8 +81,6 @@ void R_Init (void)
 
 void R_SetupFrame (player_t *player)
 {
-    _g->viewplayer = player;
-
     viewx = player->mo->x;
     viewy = player->mo->y;
     viewz = player->viewz;
@@ -104,6 +102,8 @@ void R_SetupFrame (player_t *player)
         fixedcolormap = 0;
 
     _g->validcount++;
+
+    highDetail = _g->highDetail;
 }
 
 

@@ -286,7 +286,7 @@ void P_TouchSpecialThing(mobj_t *special, mobj_t *toucher)
     return;        // out of reach
 
   sound = sfx_itemup;
-  player = toucher->player;
+  player = P_MobjIsPlayer(toucher);
 
   // Dead thing touching.
   // Can happen with a sliding player corpse.
@@ -603,13 +603,11 @@ static void P_KillMobj(mobj_t *source, mobj_t *target)
   if (!((target->flags ^ MF_COUNTKILL) & (MF_FRIEND | MF_COUNTKILL)))
     _g->totallive--;
 
-  if (source && source->player)
+  if (source && P_MobjIsPlayer(source))
     {
       // count for intermission
       if (target->flags & MF_COUNTKILL)
-        source->player->killcount++;
-      if (target->player)
-        source->player->frags[target->player-&_g->player]++;
+        P_MobjIsPlayer(source)->killcount++;
     }
   else if (target->flags & MF_COUNTKILL)
   { /* Add to kills tally */
@@ -620,24 +618,20 @@ static void P_KillMobj(mobj_t *source, mobj_t *target)
 
   }
 
-  if (target->player)
+  if (P_MobjIsPlayer(target))
     {
-      // count environment kills against you
-      if (!source)
-        target->player->frags[target->player-&_g->player]++;
-
       target->flags &= ~MF_SOLID;
-      target->player->playerstate = PST_DEAD;
-      P_DropWeapon (target->player);
+      _g->player.playerstate = PST_DEAD;
+      P_DropWeapon (&_g->player);
 
-      if (target->player == &_g->player && (_g->automapmode & am_active))
+      if (_g->automapmode & am_active)
         AM_Stop();    // don't die in auto map; switch view prior to dying
     }
 
-  if (target->health < -target->info->spawnhealth && target->info->xdeathstate)
-    P_SetMobjState (target, target->info->xdeathstate);
+  if (target->health < -mobjinfo[target->type].spawnhealth && mobjinfo[target->type].xdeathstate)
+    P_SetMobjState (target, mobjinfo[target->type].xdeathstate);
   else
-    P_SetMobjState (target, target->info->deathstate);
+    P_SetMobjState (target, mobjinfo[target->type].deathstate);
 
   target->tics -= P_Random()&3;
 
@@ -705,7 +699,7 @@ void P_DamageMobj(mobj_t *target,mobj_t *inflictor, mobj_t *source, int damage)
   if (target->flags & MF_SKULLFLY)
     target->momx = target->momy = target->momz = 0;
 
-  player = target->player;
+  player = P_MobjIsPlayer(target);
   if (player && _g->gameskill == sk_baby)
     damage >>= 1;   // take half damage in trainer mode
 
@@ -714,13 +708,13 @@ void P_DamageMobj(mobj_t *target,mobj_t *inflictor, mobj_t *source, int damage)
   // thus kick away unless using the chainsaw.
 
   if (inflictor && !(target->flags & MF_NOCLIP) &&
-      (!source || !source->player ||
-       source->player->readyweapon != wp_chainsaw))
+      (!source || !P_MobjIsPlayer(source) ||
+       P_MobjIsPlayer(source)->readyweapon != wp_chainsaw))
     {
       unsigned ang = R_PointToAngle2 (inflictor->x, inflictor->y,
                                       target->x,    target->y);
 
-      fixed_t thrust = damage*(FRACUNIT>>3)*100/target->info->mass;
+      fixed_t thrust = damage*(FRACUNIT>>3)*100/mobjinfo[target->type].mass;
 
       // make fall forwards sometimes
       if ( damage < 40 && damage > target->health
@@ -789,12 +783,12 @@ void P_DamageMobj(mobj_t *target,mobj_t *inflictor, mobj_t *source, int damage)
       if (player)
   P_SetTarget(&target->target, source);
 
-  if (P_Random () < target->info->painchance &&
+  if (P_Random () < mobjinfo[target->type].painchance &&
       !(target->flags & MF_SKULLFLY))
   { //killough 11/98: see below
       justhit = true;
 
-    P_SetMobjState(target, target->info->painstate);
+    P_SetMobjState(target, mobjinfo[target->type].painstate);
   }
 
   target->reactiontime = 0;           // we're awake now...
@@ -819,9 +813,9 @@ void P_DamageMobj(mobj_t *target,mobj_t *inflictor, mobj_t *source, int damage)
 
       P_SetTarget(&target->target, source);       // killough 11/98
       target->threshold = BASETHRESHOLD;
-      if (target->state == &states[target->info->spawnstate]
-          && target->info->seestate != S_NULL)
-        P_SetMobjState (target, target->info->seestate);
+      if (target->state == &states[mobjinfo[target->type].spawnstate]
+          && mobjinfo[target->type].seestate != S_NULL)
+        P_SetMobjState (target, mobjinfo[target->type].seestate);
     }
 
   /* killough 11/98: Don't attack a friend, unless hit by that friend.

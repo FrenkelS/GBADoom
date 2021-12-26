@@ -179,44 +179,73 @@ static void P_StartButton
 //
 // No return
 //
-void P_ChangeSwitchTexture
-( const line_t*       line,
-  int           useAgain )
+void P_ChangeSwitchTexture (const line_t* line, int useAgain)
 {
-  /* Rearranged a bit to avoid too much code duplication */
-  int     i, sound;
-  short   *texture, *ttop, *tmid, *tbot;
-  bwhere_e position;
+    /* Rearranged a bit to avoid too much code duplication */
+    int     i, sound;
+    short   *texture, ttop, tmid, tbot;
+    bwhere_e position;
 
-  ttop = &_g->sides[line->sidenum[0]].toptexture;
-  tmid = &_g->sides[line->sidenum[0]].midtexture;
-  tbot = &_g->sides[line->sidenum[0]].bottomtexture;
+    ttop = _g->sides[line->sidenum[0]].toptexture;
+    tmid = _g->sides[line->sidenum[0]].midtexture;
+    tbot = _g->sides[line->sidenum[0]].bottomtexture;
 
-  sound = sfx_swtchn;
+    sound = sfx_swtchn;
 
-  /* don't zero line->special until after exit switch test */
-  if (!useAgain)
-    LN_SPECIAL(line) = 0;
+    /* don't zero line->special until after exit switch test */
+    if (!useAgain)
+        LN_SPECIAL(line) = 0;
 
-  /* search for a texture to change */
-  texture = NULL; position = 0;
-  for (i = 0;i < _g->numswitches*2;i++) { /* this could be more efficient... */
-    if (_g->switchlist[i] == *ttop) {
-      texture = ttop; position = top; break;
-    } else if (_g->switchlist[i] == *tmid) {
-      texture = tmid; position = middle; break;
-    } else if (_g->switchlist[i] == *tbot) {
-      texture = tbot; position = bottom; break;
+    /* search for a texture to change */
+    texture = NULL;
+    position = 0;
+
+    for (i = 0; i < _g->numswitches*2; i++)
+    {
+        if (_g->switchlist[i] == ttop)
+        {
+            texture = &ttop;
+            position = top;
+            break;
+        }
+        else if (_g->switchlist[i] == tmid)
+        {
+            texture = &tmid;
+            position = middle;
+            break;
+        }
+        else if (_g->switchlist[i] == tbot)
+        {
+            texture = &tbot;
+            position = bottom;
+            break;
+        }
     }
-  }
-  if (texture == NULL)
-    return; /* no switch texture was found to change */
-  *texture = _g->switchlist[i^1];
 
-  S_StartSound2(&LN_FRONTSECTOR(line)->soundorg, sound);
+    if (texture == NULL)
+        return; /* no switch texture was found to change */
 
-  if (useAgain)
-    P_StartButton(line, position, _g->switchlist[i], BUTTONTIME);
+    *texture = _g->switchlist[i^1];
+
+    switch(position)
+    {
+        case top:
+            _g->sides[line->sidenum[0]].toptexture = *texture;
+            break;
+
+        case middle:
+            _g->sides[line->sidenum[0]].midtexture = *texture;
+            break;
+
+        case bottom:
+            _g->sides[line->sidenum[0]].bottomtexture = *texture;
+            break;
+    }
+
+    S_StartSound2(&LN_FRONTSECTOR(line)->soundorg, sound);
+
+    if (useAgain)
+        P_StartButton(line, position, _g->switchlist[i], BUTTONTIME);
 }
 
 
@@ -257,7 +286,7 @@ P_UseSpecialLine
     }
     else if ((unsigned)LN_SPECIAL(line) >= GenFloorBase)
     {
-      if (!thing->player)
+      if (!P_MobjIsPlayer(thing))
         if ((LN_SPECIAL(line) & FloorChange) || !(LN_SPECIAL(line) & FloorModel))
           return false; // FloorModel is "Allow Monsters" if FloorChange is 0
       if (!line->tag && ((LN_SPECIAL(line)&6)!=6)) //jff 2/27/98 all non-manual
@@ -266,7 +295,7 @@ P_UseSpecialLine
     }
     else if ((unsigned)LN_SPECIAL(line) >= GenCeilingBase)
     {
-      if (!thing->player)
+      if (!P_MobjIsPlayer(thing))
         if ((LN_SPECIAL(line) & CeilingChange) || !(LN_SPECIAL(line) & CeilingModel))
           return false;   // CeilingModel is "Allow Monsters" if CeilingChange is 0
       if (!line->tag && ((LN_SPECIAL(line)&6)!=6)) //jff 2/27/98 all non-manual
@@ -275,7 +304,7 @@ P_UseSpecialLine
     }
     else if ((unsigned)LN_SPECIAL(line) >= GenDoorBase)
     {
-      if (!thing->player)
+      if (!P_MobjIsPlayer(thing))
       {
         if (!(LN_SPECIAL(line) & DoorMonster))
           return false;   // monsters disallowed from this door
@@ -288,9 +317,9 @@ P_UseSpecialLine
     }
     else if ((unsigned)LN_SPECIAL(line) >= GenLockedBase)
     {
-      if (!thing->player)
+      if (!P_MobjIsPlayer(thing))
         return false;   // monsters disallowed from unlocking doors
-      if (!P_CanUnlockGenDoor(line,thing->player))
+      if (!P_CanUnlockGenDoor(line,P_MobjIsPlayer(thing)))
         return false;
       if (!line->tag && ((LN_SPECIAL(line)&6)!=6)) //jff 2/27/98 all non-manual
         return false;                         // generalized types require tag
@@ -299,7 +328,7 @@ P_UseSpecialLine
     }
     else if ((unsigned)LN_SPECIAL(line) >= GenLiftBase)
     {
-      if (!thing->player)
+      if (!P_MobjIsPlayer(thing))
         if (!(LN_SPECIAL(line) & LiftMonster))
           return false; // monsters disallowed
       if (!line->tag && ((LN_SPECIAL(line)&6)!=6)) //jff 2/27/98 all non-manual
@@ -308,7 +337,7 @@ P_UseSpecialLine
     }
     else if ((unsigned)LN_SPECIAL(line) >= GenStairsBase)
     {
-      if (!thing->player)
+      if (!P_MobjIsPlayer(thing))
         if (!(LN_SPECIAL(line) & StairMonster))
           return false; // monsters disallowed
       if (!line->tag && ((LN_SPECIAL(line)&6)!=6)) //jff 2/27/98 all non-manual
@@ -317,7 +346,7 @@ P_UseSpecialLine
     }
     else if ((unsigned)LN_SPECIAL(line) >= GenCrusherBase)
     {
-      if (!thing->player)
+      if (!P_MobjIsPlayer(thing))
         if (!(LN_SPECIAL(line) & CrusherMonster))
           return false; // monsters disallowed
       if (!line->tag && ((LN_SPECIAL(line)&6)!=6)) //jff 2/27/98 all non-manual
@@ -351,7 +380,7 @@ P_UseSpecialLine
   }
 
   // Switches that other things can activate.
-  if (!thing->player)
+  if (!P_MobjIsPlayer(thing))
   {
     // never open secret doors
     if (line->flags & ML_SECRET)
@@ -414,7 +443,7 @@ P_UseSpecialLine
       /* Exit level
        * killough 10/98: prevent zombies from exiting levels
        */
-      if (thing->player && thing->player->health <= 0)
+      if (P_MobjIsPlayer(thing) && P_MobjIsPlayer(thing)->health <= 0)
       {
         S_StartSound(thing, sfx_noway);
         return false;
@@ -494,7 +523,7 @@ P_UseSpecialLine
       /* Secret EXIT
        * killough 10/98: prevent zombies from exiting levels
        */
-      if (thing->player && thing->player->health <= 0)
+      if (P_MobjIsPlayer(thing) && P_MobjIsPlayer(thing)->health <= 0)
       {
         S_StartSound(thing, sfx_noway);
         return false;
