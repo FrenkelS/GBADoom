@@ -126,8 +126,6 @@ typedef struct gba_save_data_t
     int gameepisode;
     int gamemap;
     int totalleveltimes;
-	int alwaysRun;
-	int gamma;
 
     int weaponowned[NUMWEAPONS];
     int ammo[NUMAMMO];
@@ -143,6 +141,7 @@ typedef struct gba_save_settings_t
     unsigned int showMessages;
     unsigned int musicVolume;
     unsigned int soundVolume;
+	unsigned int highDetail;
 
 } gba_save_settings_t;
 
@@ -907,8 +906,6 @@ void G_DoLoadGame()
     _g->gameskill = savedata->gameskill;
     _g->gameepisode = savedata->gameepisode;
     _g->gamemap = savedata->gamemap;
-	_g->alwaysRun = savedata->alwaysRun;
-	_g->gamma = savedata->gamma;
 	V_SetPalLump(_g->gamma);
 	
     G_InitNew (_g->gameskill, _g->gameepisode, _g->gamemap);
@@ -955,8 +952,6 @@ static void G_DoSaveGame(boolean menu)
     savedata->gameepisode = _g->gameepisode;
     savedata->gamemap = _g->gamemap;
     savedata->totalleveltimes = _g->totalleveltimes;
-	savedata->alwaysRun = _g->alwaysRun;
-	savedata->gamma = _g->gamma;
 
     memcpy(savedata->weaponowned, _g->player.weaponowned, sizeof(savedata->weaponowned));
     memcpy(savedata->ammo, _g->player.ammo, sizeof(savedata->ammo));
@@ -984,6 +979,7 @@ void G_SaveSettings()
 
     settings.musicVolume = _g->snd_MusicVolume;
     settings.soundVolume = _g->snd_SfxVolume;
+	settings.highDetail = _g->highDetail;
 
     SaveSRAM((byte*)&settings, sizeof(settings), settings_sram_offset);
 }
@@ -996,14 +992,16 @@ void G_LoadSettings()
 
     if(settings.cookie == settings_cookie)
     {
-        _g->gamma = (settings.gamma > 0) ? 1 : 0;
+        _g->gamma = (settings.gamma > 5) ? 5 : settings.gamma;
         _g->alwaysRun = (settings.alwaysRun > 0) ? 1 : 0;
 
         _g->showMessages = (settings.showMessages > 0) ? 1 : 0;
 
         _g->snd_SfxVolume = (settings.soundVolume > 15) ? 15 : settings.soundVolume;
         _g->snd_MusicVolume = (settings.musicVolume > 15) ? 15 : settings.musicVolume;
-
+		_g->highDetail = (settings.highDetail > 0) ? 1 : 0;
+		highDetail = _g->highDetail;
+		
         V_SetPalLump(_g->gamma);
         V_SetPalette(0);
 

@@ -726,15 +726,13 @@ static void D_DoomMainSetup(void)
     //jff 9/3/98 use logical output routine
     lprintf(LO_INFO,"ST_Init: Init status bar.");
     ST_Init();
-
+    _g->highDetail = true;
     lprintf(LO_INFO,"G_LoadSettings: Loading settings.");
     G_LoadSettings();
 
     _g->idmusnum = -1; //jff 3/17/98 insure idmus number is blank
 
     _g->fps_show = false;
-
-    _g->highDetail = false;
 
     I_InitGraphics();
 
