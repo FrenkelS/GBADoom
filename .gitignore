@@ -13,6 +13,8 @@ GBADoom.elf
 
 GBADoom.sav
 
+GBADoom.exe
+
 source/iwad/doomu.gba.h
 
 source/iwad/doom1.gba.h
