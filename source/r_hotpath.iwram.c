@@ -10,6 +10,8 @@
  *  Jess Haas, Nicolas Kalkhof, Colin Phipps, Florian Schulze
  *  Copyright 2005, 2006 by
  *  Florian Schulze, Colin Phipps, Neil Stevens, Andrey Budko
+ *  Copyright 2023 by
+ *  Frenkel Smeijers
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -3312,7 +3314,7 @@ int I_GetTime(void)
 
     clock_t now = clock();
 
-    thistimereply = (int)((double)now / ((double)CLOCKS_PER_SEC / (double)TICRATE));
+    thistimereply = (now * TICRATE) / CLOCKS_PER_SEC;
 #else
     thistimereply = I_GetTime_e32();
 #endif
