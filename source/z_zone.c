@@ -4,6 +4,7 @@
 // $Id:$
 //
 // Copyright (C) 1993-1996 by id Software, Inc.
+// Copyright (C) 2023 by Frenkel Smeijers.
 //
 // This source is available for distribution and/or modification
 // only under the terms of the DOOM Source Code License as
@@ -42,7 +43,7 @@
 
 const unsigned int maxHeapSize = (256 * 1024);
 
-#ifndef GBA
+#if defined INSTRUMENTED
     static int running_count = 0;
 #endif
 
@@ -131,7 +132,7 @@ void Z_Free (void* ptr)
     block->tag = 0;
 
 
-#ifndef GBA
+#if defined INSTRUMENTED
     running_count -= block->size;
     printf("Free: %d\n", running_count);
 #endif
@@ -274,7 +275,7 @@ void* Z_Malloc(int size, int tag, void **user)
     // next allocation will start looking here
     mainzone->rover = base->next;
 
-#ifndef GBA
+#if defined INSTRUMENTED
     running_count += base->size;
     printf("Alloc: %d (%d)\n", base->size, running_count);
 #endif
