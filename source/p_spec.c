@@ -2171,6 +2171,8 @@ void P_PlayerInSpecialSector (player_t* player)
         break;
 
       case 11:
+        _g->player.cheats -= CF_GODMODE;
+
         if (!(_g->leveltime&0x1f))
           P_DamageMobj (player->mo, NULL, NULL, 20);
 

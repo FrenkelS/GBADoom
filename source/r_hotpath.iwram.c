@@ -837,6 +837,8 @@ static void R_DrawVisSprite(const vissprite_t *vis)
         if(!hires)
             dcvars.x++;
 
+        if(dcvars.x >= SCREENWIDTH)
+            break;
 
         const column_t* column2 = (const column_t *) ((const byte *)patch + patch->columnofs[frac >> FRACBITS]);
         R_DrawMaskedColumn(colfunc, &dcvars, column2);
@@ -2949,9 +2951,9 @@ void V_DrawPatchNoScale(int x, int y, const patch_t* patch)
     {
         const column_t* column = (const column_t*)((const byte*)patch + patch->columnofs[col]);
 
-        unsigned int odd_addr = (unsigned int)desttop & 1;
+        unsigned int odd_addr = (size_t)desttop & 1;
 
-        byte* desttop_even = (byte*)((unsigned int)desttop & 0xfffffffe);
+        byte* desttop_even = (byte*)((size_t)desttop & ~1);
 
         // step through the posts in a column
         while (column->topdelta != 0xff)
