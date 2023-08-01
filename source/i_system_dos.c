@@ -203,27 +203,30 @@ static void I_SetScreenMode(uint16_t mode)
 }
 
 
+#define SCREENWIDTH_VGA  320
+#define SCREENHEIGHT_VGA 200
+
 void I_CreateBackBuffer_e32(void)
 {	
 	I_SetScreenMode(0x13);
 
 	__djgpp_nearptr_enable();
-	screen = (byte *)(0xa0000 + __djgpp_conventional_base);
+	screen = (byte *)(0xa0000 + ((SCREENWIDTH_VGA - SCREENWIDTH * 2) / 2) + (((SCREENHEIGHT_VGA - SCREENHEIGHT) / 2) * SCREENWIDTH_VGA) + __djgpp_conventional_base);
 }
 
 
 void I_FinishUpdate_e32(const byte* srcBuffer, const byte* palette, const unsigned int width, const unsigned int height)
 {
 	uint_fast8_t x, y;
-	byte *src, *dst;
+	uint32_t *src, *dst;
 
 	src = srcBuffer;
 	dst = screen;
 	for (y = 0; y < SCREENHEIGHT; y++) {
-		for (x = 0; x < (SCREENWIDTH * 2); x++) {
+		for (x = 0; x < (SCREENWIDTH * 2) / 4; x++) {
 			*dst++ = *src++;
 		}
-		dst += (320 - (SCREENWIDTH * 2));
+		dst += ((SCREENWIDTH_VGA - (SCREENWIDTH * 2)) / 4);
 	}
 }
 

@@ -1,7 +1,7 @@
 call C:\Progs\djgpp\setenv.bat
 
 set CFLAGS=-march=i386 
-@rem set CFLAGS=%CFLAGS% -Ofast -flto -fwhole-program -fomit-frame-pointer -funroll-loops -fgcse-sm -fgcse-las -fipa-pta -mpreferred-stack-boundary=2 -Wno-attributes
+set CFLAGS=%CFLAGS% -Ofast -flto -fwhole-program -fomit-frame-pointer -funroll-loops -fgcse-sm -fgcse-las -fipa-pta -mpreferred-stack-boundary=2 -Wno-attributes
 
 @set GLOBOBJS=
 @set GLOBOBJS=%GLOBOBJS% source\am_map.c
