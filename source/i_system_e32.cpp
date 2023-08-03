@@ -2,6 +2,7 @@
 //
 // Copyright 17/02/2019 
 //
+// Copyright 04/08/2023 Frenkel Smeijers
 
 #ifndef GBA
 
@@ -88,6 +89,11 @@ unsigned short* I_GetFrontBuffer()
     return &frontbuffer[0];
 }
 
+void I_CopyBackBufferToFrontBuffer(void)
+{
+
+}
+
 //**************************************************************************************
 
 void I_CreateWindow_e32()
@@ -151,6 +157,13 @@ void I_FinishUpdate_e32(const byte* srcBuffer, const byte* pallete, const unsign
     f.write("\n};\n");
 
     f.close();
+
+}
+
+//**************************************************************************************
+
+void I_DrawFrontBuffer(void)
+{
 
 }
 

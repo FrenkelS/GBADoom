@@ -256,6 +256,13 @@ unsigned short* I_GetFrontBuffer()
 
 //**************************************************************************************
 
+void I_CopyBackBufferToFrontBuffer(void)
+{
+
+}
+
+//**************************************************************************************
+
 void I_CreateWindow_e32()
 {
 
@@ -288,6 +295,13 @@ void I_CreateBackBuffer_e32()
 void I_FinishUpdate_e32(const byte* srcBuffer, const byte* pallete, const unsigned int width, const unsigned int height)
 {
     REG_DISPCNT ^= DCNT_PAGE;
+}
+
+//**************************************************************************************
+
+void I_DrawFrontBuffer(void)
+{
+
 }
 
 //**************************************************************************************

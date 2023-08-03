@@ -195,6 +195,18 @@ unsigned short* I_GetFrontBuffer(void)
 }
 
 
+void I_CopyBackBufferToFrontBuffer(void)
+{
+	uint_fast16_t i;
+	uint32_t *src, *dst;
+
+	src = I_GetBackBuffer();
+	dst = I_GetFrontBuffer();
+	for (i = 0; i < SCREENWIDTH * SCREENHEIGHT / 2; i++)
+		*dst++ = *src++;
+}
+
+
 static void I_SetScreenMode(uint16_t mode)
 {
 	union REGS regs;
@@ -215,12 +227,12 @@ void I_CreateBackBuffer_e32(void)
 }
 
 
-void I_FinishUpdate_e32(const byte* srcBuffer, const byte* palette, const unsigned int width, const unsigned int height)
+static void I_DrawBuffer(uint32_t *buffer)
 {
 	uint_fast8_t x, y;
 	uint32_t *src, *dst;
 
-	src = srcBuffer;
+	src = buffer;
 	dst = screen;
 	for (y = 0; y < SCREENHEIGHT; y++) {
 		for (x = 0; x < (SCREENWIDTH * 2) / 4; x++) {
@@ -228,6 +240,17 @@ void I_FinishUpdate_e32(const byte* srcBuffer, const byte* palette, const unsign
 		}
 		dst += ((SCREENWIDTH_VGA - (SCREENWIDTH * 2)) / 4);
 	}
+}
+
+
+void I_FinishUpdate_e32(const byte* srcBuffer, const byte* palette, const unsigned int width, const unsigned int height)
+{
+	I_DrawBuffer(I_GetBackBuffer());
+}
+
+void I_DrawFrontBuffer(void)
+{
+	I_DrawBuffer(I_GetFrontBuffer());
 }
 
 
@@ -260,7 +283,8 @@ void I_Error(const char *error, ...)
 	va_end(argptr);
 	printf("\n");
 
-	if (isKeyboardIsrSet) {
+	if (isKeyboardIsrSet)
+	{
 		_go32_dpmi_set_protected_mode_interrupt_vector(KEYBOARDINT, &oldkeyboardisr);
 		_go32_dpmi_free_iret_wrapper(&newkeyboardisr);
 	}

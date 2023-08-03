@@ -2,6 +2,7 @@
 //
 // Copyright 17/02/2019 
 //
+// Copyright 04/08/2023 Frenkel Smeijers
 
 #ifndef HEADER_ISYSTEME32
 #define HEADER_ISYSTEME32
@@ -22,6 +23,8 @@ int I_GetVideoHeight_e32();
 
 void I_FinishUpdate_e32(const byte* srcBuffer, const byte* pallete, const unsigned int width, const unsigned int height);
 
+void I_DrawFrontBuffer(void);
+
 void I_SetPallete_e32(const byte* pallete);
 
 void I_ProcessKeyEvents();
@@ -35,6 +38,8 @@ void I_Quit_e32();
 unsigned short* I_GetBackBuffer();
 
 unsigned short* I_GetFrontBuffer();
+
+void I_CopyBackBufferToFrontBuffer(void);
 
 #ifdef __cplusplus
 }
