@@ -10,6 +10,8 @@
  *  Jess Haas, Nicolas Kalkhof, Colin Phipps, Florian Schulze
  *  Copyright 2005, 2006 by
  *  Florian Schulze, Colin Phipps, Neil Stevens, Andrey Budko
+ *  Copyright 2023 by
+ *  Frenkel Smeijers
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -47,9 +49,9 @@
 
 // defines for the end mission display text                     // phares
 
-#define TEXTSPEED    3     // original value                    // phares
+#define TEXTSPEED    300   // original value                    // phares
 #define TEXTWAIT     250   // original value                    // phares
-#define NEWTEXTSPEED 0.01f  // new value                         // phares
+#define NEWTEXTSPEED 1     // new value                         // phares
 #define NEWTEXTWAIT  1000  // new value                         // phares
 
 // CPhipps - removed the old finale screen text message strings;
@@ -184,7 +186,7 @@ boolean F_Responder (event_t *event)
 // Get_TextSpeed() returns the value of the text display speed  // phares
 // Rewritten to allow user-directed acceleration -- killough 3/28/98
 
-static float Get_TextSpeed(void)
+static int Get_TextSpeed(void)
 {
     return _g->midstage ? NEWTEXTSPEED : (_g->midstage=_g->acceleratestage) ?
                               _g->acceleratestage=0, NEWTEXTSPEED : TEXTSPEED;
@@ -217,9 +219,9 @@ static float Get_TextSpeed(void)
 
     if (!_g->finalestage)
     {
-        float speed = Get_TextSpeed();
+        int speed = Get_TextSpeed();
         /* killough 2/28/98: changed to allow acceleration */
-        if (_g->finalecount > strlen(_g->finaletext)*speed +
+        if (_g->finalecount > strlen(_g->finaletext)*speed/100 +
                 (_g->midstage ? NEWTEXTWAIT : TEXTWAIT) ||
                 (_g->midstage && _g->acceleratestage))
         {
@@ -264,7 +266,7 @@ static void F_TextWrite (void)
         int         cx = 10;
         int         cy = 10;
         const char* ch = _g->finaletext; // CPhipps - const
-        int         count = (int)((float)(_g->finalecount - 10)/Get_TextSpeed()); // phares
+        int         count = (_g->finalecount - 10)*100/Get_TextSpeed(); // phares
         int         w;
 
         if (count < 0)

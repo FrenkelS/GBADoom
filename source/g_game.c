@@ -10,6 +10,8 @@
  *  Jess Haas, Nicolas Kalkhof, Colin Phipps, Florian Schulze
  *  Copyright 2005, 2006 by
  *  Florian Schulze, Colin Phipps, Neil Stevens, Andrey Budko
+ *  Copyright 2023 by
+ *  Frenkel Smeijers
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -1349,9 +1351,10 @@ boolean G_CheckDemoStatus (void)
         int endtime = I_GetTime();
         // killough -- added fps information and made it work for longer demos:
         unsigned realtics = endtime-_g->starttime;
-        I_Error ("Timed %u gametics in %u realtics = %-.1f frames per second",
+        unsigned resultfps = TICRATE * 1000 * _g->gametic / realtics;
+        I_Error ("Timed %u gametics in %u realtics = %u.%.3u frames per second",
                  (unsigned) _g->gametic,realtics,
-                 (unsigned) _g->gametic * (double) TICRATE / realtics);
+                 resultfps / 1000, resultfps % 1000);
     }
 
     if (_g->demoplayback)
